@@ -1,8 +1,8 @@
 
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.functions.{collect_list, struct, to_json}
-import org.apache.spark.sql.{Column, Row, SaveMode, SparkSession}
-import org.apache.spark.sql.types.{DateType, DoubleType, IntegerType, StringType, StructField, StructType}
+import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.types.{DateType, IntegerType, StringType, StructField, StructType}
 
 object MovieLens {
 
@@ -20,7 +20,7 @@ object MovieLens {
       .master("local[*]")
       .getOrCreate();
 
-    //1. Прочитать файл c фильмами
+    //Прочитать файл c фильмами
     val movieSchema = StructType(Array(
       StructField("movieId", IntegerType, true),
       StructField("movieTitle", StringType, true),
@@ -59,7 +59,7 @@ object MovieLens {
     movies.show(100);
     movies.printSchema();
 
-    //2. прочитать файл с рейтингом
+    //Прочитать файл с рейтингом
     val ratingSchema = StructType(Array(
       StructField("userId", IntegerType, true),
       StructField("movieId", IntegerType, true),
@@ -83,16 +83,19 @@ object MovieLens {
       .rdd.map(r => (r.getInt(0), r.getString(1)))
       .collect().toMap
 
+    //Кол-во проставленных оценок для всех фильмов
     val allRatings = ratings.groupBy("rating")
       .count()
       .orderBy("rating")
 
     allRatings.show(false)
 
+    //Агрегация результата в вектор
     val allRatingsAgg = allRatings.agg(collect_list("count").as("hist_all"))
 
     allRatingsAgg.show()
 
+    //Кол-во проставленных оценок для фильма movieId = 32
     val movieRating = ratings.where("movieId = 32")
       .groupBy("rating")
       .count()
@@ -102,9 +105,11 @@ object MovieLens {
 
     val movieName = moviesHash(32)
 
+    //Агрегация результата в вектор
     val movieRatingAgg = movieRating.agg(collect_list("count").as(movieName))
     movieRatingAgg.show()
 
+    //Сохранение в json файл
     movieRatingAgg.join(allRatingsAgg)
       .write.mode(SaveMode.Overwrite)
       .json("./output/result.json")
